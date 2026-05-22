@@ -6,6 +6,7 @@ import { useUser } from "@clerk/clerk-react";
 import { Home } from "./pages/Home";
 import { Shop } from "./pages/Shop";
 import { Cart } from "./pages/Cart";
+import { OrderConfirmation } from "./pages/OrderConfirmation";
 import { ProductDetail } from "./pages/ProductDetail";
 import { MyOrders } from "./pages/MyOrders";
 import { Wishlist } from "./pages/Wishlist";
@@ -56,6 +57,7 @@ export function App() {
         <Route path="/shop" element={<Shop />} />
         <Route path="/product/:id" element={<ProductDetail />} />
         <Route path="/cart" element={<Cart />} />
+        <Route path="/order-confirmation" element={<OrderConfirmation />} />
         <Route path="/my-orders" element={<MyOrders />} />
         <Route path="/wishlist" element={<Wishlist />} />
         <Route path="/signup/*" element={<Signup />} />

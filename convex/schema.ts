@@ -75,7 +75,10 @@ export default defineSchema({
       v.literal("cancelled"),
     ),
     confirmationEmailSentAt: v.optional(v.number()),
-  }),
+    stripeCheckoutSessionId: v.optional(v.string()),
+    paymentIntentId: v.optional(v.string()),
+    stripeSessionId: v.optional(v.string()),
+  }).index("by_stripe_checkout_session", ["stripeCheckoutSessionId"]),
 
   wishlist: defineTable({
     userId: v.string(),

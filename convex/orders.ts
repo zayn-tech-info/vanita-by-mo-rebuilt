@@ -19,7 +19,101 @@ async function requireAdmin(ctx: any) {
   return user;
 }
 
-// Place a new order (for future checkout flows)
+const cartItemValidator = v.object({
+  productId: v.union(v.number(), v.string(), v.id("products")),
+  name: v.string(),
+  price: v.number(),
+  quantity: v.number(),
+  size: v.optional(v.string()),
+  color: v.optional(v.string()),
+  image: v.string(),
+});
+
+export const createPendingOrderFromCart = mutation({
+  args: {
+    userId: v.string(),
+    items: v.array(cartItemValidator),
+    subtotal: v.number(),
+    shippingCost: v.number(),
+    total: v.number(),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.insert("orders", {
+      userId: args.userId,
+      customerName: "Pending",
+      customerEmail: "pending@checkout",
+      shippingAddress: {
+        street: "",
+        city: "",
+        state: "",
+        zipCode: "",
+        country: "",
+      },
+      items: args.items,
+      subtotal: args.subtotal,
+      shippingCost: args.shippingCost,
+      total: args.total,
+      status: "awaiting_payment",
+    });
+  },
+});
+
+export const setStripeCheckoutSessionId = mutation({
+  args: {
+    orderId: v.id("orders"),
+    stripeCheckoutSessionId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.orderId, {
+      stripeCheckoutSessionId: args.stripeCheckoutSessionId,
+    });
+    return args.orderId;
+  },
+});
+
+export const completeFromStripeCheckout = mutation({
+  args: {
+    orderId: v.id("orders"),
+    stripeCheckoutSessionId: v.string(),
+    customerName: v.string(),
+    customerEmail: v.string(),
+    shippingAddress: v.object({
+      street: v.string(),
+      city: v.string(),
+      state: v.string(),
+      zipCode: v.string(),
+      country: v.string(),
+    }),
+  },
+  handler: async (ctx, args) => {
+    const order = await ctx.db.get(args.orderId);
+    if (!order || order.status !== "awaiting_payment") {
+      return null;
+    }
+    await ctx.db.patch(args.orderId, {
+      stripeCheckoutSessionId: args.stripeCheckoutSessionId,
+      customerName: args.customerName,
+      customerEmail: args.customerEmail,
+      shippingAddress: args.shippingAddress,
+      status: "pending",
+    });
+    return args.orderId;
+  },
+});
+
+export const getByStripeCheckoutSessionId = query({
+  args: { stripeCheckoutSessionId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("orders")
+      .withIndex("by_stripe_checkout_session", (q) =>
+        q.eq("stripeCheckoutSessionId", args.stripeCheckoutSessionId),
+      )
+      .first();
+  },
+});
+
+// Place a new order (manual / legacy)
 export const place = mutation({
   args: {
     userId: v.optional(v.string()),

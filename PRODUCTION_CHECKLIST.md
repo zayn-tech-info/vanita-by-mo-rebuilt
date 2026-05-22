@@ -87,9 +87,8 @@ If you want a neutral default for production, we can add a `vite.config.producti
 ## 7. Final checks
 
 - [ ] **Admin role** — Ensure at least one user has `role: "admin"` in the Convex `user` table for the production deployment (backend already enforces `requireAdmin` on mutations).
-- [ ] **Redeem codes** — Create any launch or ongoing promo codes in Admin → Redeem codes.
 - [ ] **Test checkout** — Run a live-mode test purchase (small amount + refund if needed) and confirm: redirect, webhook, order in DB, cart cleared, confirmation email, and status email after changing status in admin.
-- [ ] **Wishlist & cart** — Quick test: add to cart, add to wishlist, move to cart, checkout with a code.
+- [ ] **Wishlist & cart** — Quick test: add to cart, add to wishlist, move to cart, complete Stripe checkout.
 
 ---
 

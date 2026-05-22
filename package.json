@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@clerk/clerk-react": "^5.61.6",
+    "@convex-dev/stripe": "^0.1.4",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@mui/material": "^7.3.8",
@@ -24,6 +25,7 @@
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.13.0",
     "react-toastify": "^11.0.5",
+    "stripe": "^22.1.1",
     "svix": "^1.94.0",
     "tailwindcss": "^4.1.18",
     "zustand": "^5.0.11"

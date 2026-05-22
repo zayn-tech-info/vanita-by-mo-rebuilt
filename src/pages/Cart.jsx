@@ -1,8 +1,15 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { useAction } from "convex/react";
+import { useUser } from "@clerk/clerk-react";
+import { api } from "../../convex/_generated/api";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 import { useCart } from "../hooks/useCart";
+import { useSessionId } from "../hooks/useSessionId";
+import { getConvexErrorMessage } from "../lib/convexError";
+import { toast } from "react-toastify";
+import { Loader2, LogIn, UserPlus, X } from "lucide-react";
 
 export function Cart() {
   const {
@@ -14,8 +21,47 @@ export function Cart() {
     clearCart,
   } = useCart();
   const [removingId, setRemovingId] = useState(null);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const sessionId = useSessionId();
+  const createCartCheckout = useAction(api.stripe.createCartCheckout);
+  const { isLoaded, isSignedIn, user } = useUser();
+  const [searchParams, setSearchParams] = useSearchParams();
+
   const shippingCost = subtotal > 200 ? 0 : 15;
   const total = subtotal + shippingCost;
+
+  useEffect(() => {
+    if (searchParams.get("checkout") === "cancelled") {
+      toast.info("Checkout was cancelled. Your cart is still here.");
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
+  const handleCheckout = async () => {
+    if (!isSignedIn || !user) {
+      setShowLoginModal(true);
+      return;
+    }
+    setCheckoutLoading(true);
+    const toastId = toast.loading("Redirecting to secure checkout…");
+    try {
+      const { url } = await createCartCheckout({
+        sessionId,
+        userId: user.id,
+      });
+      toast.dismiss(toastId);
+      window.location.href = url;
+    } catch (err) {
+      toast.update(toastId, {
+        render: getConvexErrorMessage(err, "Could not start checkout."),
+        type: "error",
+        isLoading: false,
+        autoClose: 5000,
+      });
+      setCheckoutLoading(false);
+    }
+  };
 
   const handleRemove = async (id) => {
     setRemovingId(id);
@@ -91,11 +137,10 @@ export function Cart() {
                 {cartItems.map((item) => (
                   <div
                     key={item._id}
-                    className={`py-5 sm:py-6 transition-all duration-300 ${
-                      removingId === item._id
-                        ? "opacity-0 -translate-x-8"
-                        : "opacity-100 translate-x-0"
-                    }`}
+                    className={`py-5 sm:py-6 transition-all duration-300 ${removingId === item._id
+                      ? "opacity-0 -translate-x-8"
+                      : "opacity-100 translate-x-0"
+                      }`}
                   >
                     {/* Mobile Layout */}
                     <div className="sm:hidden flex gap-4">
@@ -369,17 +414,20 @@ export function Cart() {
                   </span>
                 </div>
 
-                <p className="text-sm text-stone-500 font-light text-center mb-6 leading-relaxed">
-                  Online checkout is being rebuilt. Your cart is saved — check
-                  back soon to complete your order.
-                </p>
-
-                <Link
-                  to="/shop"
-                  className="block w-full py-4 bg-stone-900 text-white text-xs tracking-[0.2em] uppercase hover:bg-amber-700 transition-colors duration-300 mb-4 text-center"
+                <button
+                  type="button"
+                  onClick={handleCheckout}
+                  disabled={checkoutLoading || !isLoaded}
+                  className="w-full py-4 bg-stone-900 text-white text-xs tracking-[0.2em] uppercase hover:bg-amber-700 transition-colors duration-300 mb-2 flex items-center justify-center gap-2 disabled:opacity-60 disabled:pointer-events-none"
                 >
-                  Continue Shopping
-                </Link>
+                  {checkoutLoading ? (
+                    <Loader2 size={18} className="animate-spin" />
+                  ) : null}
+                  {checkoutLoading ? "Starting checkout…" : "Checkout with Stripe"}
+                </button>
+                <p className="text-[10px] text-stone-400 text-center tracking-wide mb-4">
+                  Secure payment · Shipping collected at checkout
+                </p>
 
                 {/* Trust Badges */}
                 <div className="flex items-center justify-center gap-4 pt-4 border-t border-stone-100">
@@ -509,6 +557,63 @@ export function Cart() {
           </div>
         )}
       </section>
+
+      {showLoginModal && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/50 z-50 backdrop-blur-sm"
+            onClick={() => setShowLoginModal(false)}
+            aria-hidden="true"
+          />
+          <div
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md mx-4 bg-white rounded-xl shadow-2xl border border-stone-200 overflow-hidden"
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="p-6 sm:p-8">
+              <div className="flex justify-between items-start gap-4">
+                <div className="w-12 h-12 rounded-full bg-amber-100 border border-amber-200 flex items-center justify-center shrink-0">
+                  <LogIn size={24} className="text-amber-700" />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowLoginModal(false)}
+                  className="p-2 text-stone-400 hover:text-stone-600 rounded-lg hover:bg-stone-100 transition-colors"
+                  aria-label="Close"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              <h2 className="text-xl font-light text-stone-900 tracking-wide mt-4">
+                Sign in to checkout
+              </h2>
+              <p className="text-stone-600 font-light text-sm mt-2 leading-relaxed">
+                Your cart is saved. Sign in to continue to secure Stripe checkout.
+              </p>
+              <div className="mt-6 flex flex-col gap-3">
+                <Link
+                  to="/login"
+                  state={{ from: "/cart" }}
+                  onClick={() => setShowLoginModal(false)}
+                  className="flex items-center justify-center gap-2 w-full py-3.5 bg-stone-900 text-white text-sm tracking-[0.15em] uppercase hover:bg-amber-800 transition-colors rounded-lg"
+                >
+                  <LogIn size={18} />
+                  Log in
+                </Link>
+                <Link
+                  to="/signup"
+                  state={{ from: "/cart" }}
+                  onClick={() => setShowLoginModal(false)}
+                  className="flex items-center justify-center gap-2 w-full py-3.5 border-2 border-stone-900 text-stone-900 text-sm tracking-[0.15em] uppercase hover:bg-stone-50 transition-colors rounded-lg"
+                >
+                  <UserPlus size={18} />
+                  Create account
+                </Link>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       <Footer />
     </div>
