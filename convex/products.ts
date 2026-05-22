@@ -5,49 +5,57 @@ import { clerkUserIdFromIdentity } from "./clerkIdentity";
 async function requireAdmin(ctx: any) {
     const identity = await ctx.auth.getUserIdentity();
     const clerkId = clerkUserIdFromIdentity(identity);
+
+    // If the user is not authenticated, throw an error
     if (!clerkId) {
-        throw new Error("Unauthorized: Admin access required.");
+        throw new Error("Session expired. Please log in again.");
     }
-    const user = await ctx.db
-        .query("user")
-        .withIndex("by_clerkId", (q: any) => q.eq("clerkId", clerkId))
-        .unique();
+    const user = await ctx.db.query("user").withIndex("by_clerkId", (q: any) => q.eq("clerkId", clerkId)).unique()
+
     if (!user || user.role !== "admin") {
-        throw new Error("Unauthorized: Admin access required.");
+        throw new Error("Unauthorized: Admin access required")
     }
-    return user;
+    return user
 }
 
 
-//  PUBLIC QUERIES (for storefront)
+//  Public api query for storeFront
 export const list = query({
     args: {},
     handler: async (ctx) => {
-        return await ctx.db.query("products").collect();
+        return await ctx.db.query("products").collect()
     },
-});
+})
+
+
 
 // Get products filtered by category
 export const listByCategory = query({
-    args: { category: v.string() },
+    args: {
+        category: v.string()
+    },
     handler: async (ctx, args) => {
         return await ctx.db
             .query("products")
             .withIndex("by_category", (q) => q.eq("category", args.category))
-            .collect();
-    },
-});
+            .collect()
+    }
+})
+
 
 // Get a single product by ID
 export const getById = query({
-    args: { id: v.id("products") },
-    handler: async (ctx, args) => {
-        return await ctx.db.get(args.id);
+    args: {
+        id: v.id("products")
     },
-});
-
+    handler: async (ctx, args) => {
+        return await ctx.db.get(args.id)
+    }
+})
 
 // Create a new product (admin only)
+
+
 export const create = mutation({
     args: {
         userId: v.string(),
@@ -64,12 +72,13 @@ export const create = mutation({
         care: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
-        await requireAdmin(ctx);
+        await requireAdmin(ctx)
 
-        const { userId, ...productData } = args;
-        return await ctx.db.insert("products", productData);
+        const { userId, ...productData } = args
+        return await ctx.db.insert("products", productData)
     },
-});
+})
+
 
 // Update an existing product (admin only)
 export const update = mutation({

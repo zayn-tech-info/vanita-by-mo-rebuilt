@@ -9,11 +9,11 @@ import {
   Search,
   Package,
   Loader2,
-  Upload,
   ImageIcon,
 } from "lucide-react";
 import { getConvexErrorMessage } from "../../lib/convexError";
 import { toast } from "react-toastify";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
 
 const emptyForm = {
   name: "",
@@ -32,8 +32,30 @@ const emptyForm = {
 const categoryOptions = ["dresses", "tops", "sets", "accessories"];
 const sizeOptions = ["XS", "S", "M", "L", "XL", "XXL"];
 
+const labelClass =
+  "block text-xs tracking-[0.15em] uppercase text-stone-600 font-light mb-1.5";
+const inputClass =
+  "w-full px-3 py-3 border border-stone-200 rounded-lg text-sm text-stone-800 focus:outline-none focus:border-amber-600 transition-colors bg-white";
+
+function ProductTagBadge({ variant }) {
+  if (variant === "new") {
+    return (
+      <span className="px-2.5 py-0.5 bg-amber-400/90 text-stone-900 text-[10px] tracking-widest uppercase rounded-full font-medium">
+        New
+      </span>
+    );
+  }
+  return (
+    <span className="px-2.5 py-0.5 bg-stone-100 text-stone-600 text-[10px] tracking-widest uppercase rounded-full font-medium">
+      Bestseller
+    </span>
+  );
+}
+
 export function AdminProducts() {
-  const products = useQuery(api.products.list) || [];
+  const productsQuery = useQuery(api.products.list);
+  const isLoadingProducts = productsQuery === undefined;
+  const products = productsQuery ?? [];
   const createProduct = useMutation(api.products.create);
   const updateProduct = useMutation(api.products.update);
   const removeProduct = useMutation(api.products.remove);
@@ -50,6 +72,8 @@ export function AdminProducts() {
   const [imagePreview, setImagePreview] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [productToDelete, setProductToDelete] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const fileInputRef = useRef(null);
 
   const userId = localStorage.getItem("userId");
@@ -177,16 +201,17 @@ export function AdminProducts() {
     }
   };
 
-  const handleDelete = async (productId) => {
-    if (!userId) return;
-    if (!window.confirm("Are you sure you want to delete this product?"))
-      return;
-
+  const confirmDelete = async () => {
+    if (!userId || !productToDelete) return;
+    setDeleteLoading(true);
     try {
-      await removeProduct({ userId, id: productId });
+      await removeProduct({ userId, id: productToDelete._id });
       toast.success("Product deleted");
+      setProductToDelete(null);
     } catch (err) {
       toast.error(getConvexErrorMessage(err, "Failed to delete product"));
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -217,21 +242,27 @@ export function AdminProducts() {
     }));
   };
 
+  const hasActiveFilters =
+    searchQuery.trim() !== "" || filterCategory !== "all";
+  const isEmptyCatalog = products.length === 0;
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-light text-stone-800 tracking-wide">
+          <h1 className="text-3xl font-medium text-stone-900 tracking-wide">
             Products
           </h1>
           <p className="text-sm text-stone-500 font-light mt-1">
-            {products.length} total products
+            {isLoadingProducts
+              ? "Loading products..."
+              : `${products.length} total products`}
           </p>
         </div>
         <button
           onClick={openCreate}
-          className="cursor-pointer inline-flex items-center gap-2 px-5 py-2.5 bg-stone-900 text-white text-xs tracking-[0.15em] uppercase rounded-lg hover:bg-stone-800 transition-colors"
+          className="cursor-pointer inline-flex items-center justify-center gap-2 px-5 py-3 bg-stone-900 text-white text-xs tracking-[0.15em] uppercase rounded-lg hover:bg-stone-800 transition-colors shrink-0"
         >
           <Plus size={16} />
           Add Product
@@ -240,7 +271,7 @@ export function AdminProducts() {
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1 max-w-sm">
+        <div className="relative flex-1 min-w-0">
           <Search
             size={16}
             className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400"
@@ -250,13 +281,13 @@ export function AdminProducts() {
             placeholder="Search products..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 bg-white border border-stone-200 rounded-lg text-sm text-stone-700 placeholder:text-stone-400 focus:outline-none focus:border-amber-600 transition-colors"
+            className="w-full pl-9 pr-4 py-3 bg-white border border-stone-200 rounded-lg text-sm text-stone-700 placeholder:text-stone-400 focus:outline-none focus:border-amber-600 transition-colors"
           />
         </div>
         <select
           value={filterCategory}
           onChange={(e) => setFilterCategory(e.target.value)}
-          className="px-4 py-2.5 bg-white border border-stone-200 rounded-lg text-sm text-stone-700 focus:outline-none focus:border-amber-600 transition-colors"
+          className="sm:w-48 px-4 py-3 bg-white border border-stone-200 rounded-lg text-sm text-stone-700 focus:outline-none focus:border-amber-600 transition-colors shrink-0"
         >
           <option value="all">All Categories</option>
           {categoryOptions.map((cat) => (
@@ -269,80 +300,109 @@ export function AdminProducts() {
 
       {/* Products Table */}
       <div className="bg-white rounded-xl border border-stone-200 overflow-hidden">
-        {filtered.length === 0 ? (
-          <div className="text-center py-16">
+        {isLoadingProducts ? (
+          <div className="p-6 space-y-4">
+            {[...Array(5)].map((_, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-4 animate-pulse"
+              >
+                <div className="w-12 h-14 rounded-md bg-stone-100 shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 bg-stone-100 rounded w-1/3" />
+                  <div className="h-3 bg-stone-50 rounded w-1/4" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-16 px-4">
             <Package size={40} className="mx-auto text-stone-300 mb-3" />
-            <p className="text-sm text-stone-400 font-light">
-              No products found
+            <p className="text-sm text-stone-500 font-light">
+              {hasActiveFilters
+                ? "No products match your search or filters"
+                : "No products yet"}
             </p>
+            {!hasActiveFilters && isEmptyCatalog && (
+              <button
+                onClick={openCreate}
+                className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 bg-stone-900 text-white text-xs tracking-[0.15em] uppercase rounded-lg hover:bg-stone-800 transition-colors"
+              >
+                <Plus size={16} />
+                Add your first product
+              </button>
+            )}
           </div>
         ) : (
-          <div className="overflow-x-auto -mx-2 sm:mx-0">
+          <div className="overflow-x-auto">
             <table className="w-full min-w-[520px] text-sm">
               <thead>
-                <tr className="border-b border-stone-100 bg-stone-50/50">
-                  <th className="text-left py-3 px-4 text-xs tracking-widest uppercase text-stone-500 font-light">
+                <tr className="border-b border-stone-200 bg-stone-50/80">
+                  <th className="text-left py-4 px-5 text-xs tracking-widest uppercase text-stone-500 font-light">
                     Product
                   </th>
-                  <th className="text-left py-3 px-4 text-xs tracking-widest uppercase text-stone-500 font-light">
+                  <th className="text-left py-4 px-5 text-xs tracking-widest uppercase text-stone-500 font-light">
                     Category
                   </th>
-                  <th className="text-left py-3 px-4 text-xs tracking-widest uppercase text-stone-500 font-light">
+                  <th className="text-left py-4 px-5 text-xs tracking-widest uppercase text-stone-500 font-light">
                     Price
                   </th>
-                  <th className="text-left py-3 px-4 text-xs tracking-widest uppercase text-stone-500 font-light">
+                  <th className="text-left py-4 px-5 text-xs tracking-widest uppercase text-stone-500 font-light">
                     Tags
                   </th>
-                  <th className="text-right py-3 px-4 text-xs tracking-widest uppercase text-stone-500 font-light">
+                  <th className="text-right py-4 px-5 text-xs tracking-widest uppercase text-stone-500 font-light">
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-stone-50">
+              <tbody className="divide-y divide-stone-100">
                 {filtered.map((product) => (
                   <tr
                     key={product._id}
-                    className="hover:bg-stone-50/50 transition-colors"
+                    className="hover:bg-stone-50/80 transition-colors"
                   >
-                    <td className="py-3 px-4">
+                    <td className="py-4 px-5">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-12 rounded bg-stone-100 overflow-hidden shrink-0">
-                          {product.image && (
+                        <div className="w-12 h-14 rounded-md bg-stone-100 overflow-hidden shrink-0">
+                          {product.image ? (
                             <img
                               src={product.image}
                               alt={product.name}
                               className="w-full h-full object-cover"
                             />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <ImageIcon
+                                size={18}
+                                className="text-stone-300"
+                              />
+                            </div>
                           )}
                         </div>
-                        <span className="text-stone-800 font-light truncate max-w-[120px] sm:max-w-[200px] block">
+                        <span className="text-stone-900 font-light truncate max-w-[140px] sm:max-w-[240px]">
                           {product.name}
                         </span>
                       </div>
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-4 px-5">
                       <span className="capitalize text-stone-600 font-light">
                         {product.category}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-stone-800 font-light">
+                    <td className="py-4 px-5 text-stone-900 font-light">
                       ${product.price}
                     </td>
-                    <td className="py-3 px-4">
-                      <div className="flex gap-1.5">
+                    <td className="py-4 px-5">
+                      <div className="flex flex-wrap gap-1.5">
                         {product.isNew && (
-                          <span className="px-2 py-0.5 bg-amber-50 text-amber-700 text-[10px] tracking-wide uppercase rounded-full">
-                            New
-                          </span>
+                          <ProductTagBadge variant="new" />
                         )}
                         {product.isBestseller && (
-                          <span className="px-2 py-0.5 bg-stone-100 text-stone-600 text-[10px] tracking-wide uppercase rounded-full">
-                            Bestseller
-                          </span>
+                          <ProductTagBadge variant="bestseller" />
                         )}
                       </div>
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-4 px-5">
                       <div className="flex items-center justify-end gap-1">
                         <button
                           onClick={() => openEdit(product)}
@@ -352,7 +412,7 @@ export function AdminProducts() {
                           <Pencil size={15} />
                         </button>
                         <button
-                          onClick={() => handleDelete(product._id)}
+                          onClick={() => setProductToDelete(product)}
                           className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
                           title="Delete"
                         >
@@ -368,22 +428,44 @@ export function AdminProducts() {
         )}
       </div>
 
-      {/* ─── Create/Edit Modal ─── */}
+      <ConfirmDialog
+        open={productToDelete != null}
+        onClose={() => !deleteLoading && setProductToDelete(null)}
+        onConfirm={confirmDelete}
+        title="Delete product?"
+        message={
+          productToDelete
+            ? `Are you sure you want to delete "${productToDelete.name}"? This action cannot be undone.`
+            : ""
+        }
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        loading={deleteLoading}
+      />
+
+      {/* ─── Create/Edit Drawer ─── */}
       {showModal && (
         <>
           <div
-            className="fixed inset-0 bg-black/50 z-50"
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50"
             onClick={() => setShowModal(false)}
           />
-          <div className="fixed inset-y-0 right-0 w-full max-w-[100vw] sm:w-[480px] bg-[#faf9f7] z-50 overflow-y-auto shadow-2xl">
-            {/* Modal Header */}
-            <div className="sticky top-0 bg-[#faf9f7] border-b border-stone-200 px-6 py-4 flex items-center justify-between z-10">
-              <h2 className="text-lg font-light text-stone-800 tracking-wide">
-                {editingProduct ? "Edit Product" : "New Product"}
-              </h2>
+          <div className="fixed inset-y-0 right-0 w-full max-w-[100vw] sm:w-[480px] bg-[#f5f3f0] z-50 overflow-y-auto shadow-2xl">
+            {/* Drawer Header */}
+            <div className="sticky top-0 bg-[#f5f3f0] border-b border-stone-200 px-6 py-5 flex items-center justify-between z-10">
+              <div>
+                <p className="text-xs tracking-[0.15em] uppercase text-stone-500 font-light mb-1">
+                  {editingProduct ? "Edit" : "Create"}
+                </p>
+                <h2 className="text-xl font-medium text-stone-900 tracking-wide">
+                  {editingProduct ? "Edit Product" : "New Product"}
+                </h2>
+              </div>
               <button
                 onClick={() => setShowModal(false)}
-                className="text-stone-400 hover:text-stone-700 transition-colors"
+                className="p-2 text-stone-400 hover:text-stone-700 hover:bg-stone-200/50 rounded-lg transition-colors"
+                aria-label="Close"
               >
                 <X size={20} />
               </button>
@@ -393,9 +475,7 @@ export function AdminProducts() {
             <form onSubmit={handleSubmit} className="p-6 space-y-5">
               {/* Name */}
               <div>
-                <label className="block text-xs tracking-[0.15em] uppercase text-stone-600 font-light mb-1.5">
-                  Product Name
-                </label>
+                <label className={labelClass}>Product Name</label>
                 <input
                   type="text"
                   required
@@ -403,16 +483,14 @@ export function AdminProducts() {
                   onChange={(e) =>
                     setFormData((p) => ({ ...p, name: e.target.value }))
                   }
-                  className="w-full px-3 py-2.5 border border-stone-200 rounded-lg text-sm text-stone-800 focus:outline-none focus:border-amber-600 transition-colors bg-white"
+                  className={inputClass}
                 />
               </div>
 
               {/* Price + Category Row */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs tracking-[0.15em] uppercase text-stone-600 font-light mb-1.5">
-                    Price ($)
-                  </label>
+                  <label className={labelClass}>Price ($)</label>
                   <input
                     type="number"
                     step="0.01"
@@ -421,19 +499,17 @@ export function AdminProducts() {
                     onChange={(e) =>
                       setFormData((p) => ({ ...p, price: e.target.value }))
                     }
-                    className="w-full px-3 py-2.5 border border-stone-200 rounded-lg text-sm text-stone-800 focus:outline-none focus:border-amber-600 transition-colors bg-white"
+                    className={inputClass}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs tracking-[0.15em] uppercase text-stone-600 font-light mb-1.5">
-                    Category
-                  </label>
+                  <label className={labelClass}>Category</label>
                   <select
                     value={formData.category}
                     onChange={(e) =>
                       setFormData((p) => ({ ...p, category: e.target.value }))
                     }
-                    className="w-full px-3 py-2.5 border border-stone-200 rounded-lg text-sm text-stone-800 focus:outline-none focus:border-amber-600 transition-colors bg-white"
+                    className={inputClass}
                   >
                     {categoryOptions.map((cat) => (
                       <option key={cat} value={cat}>
@@ -446,14 +522,12 @@ export function AdminProducts() {
 
               {/* Image Upload */}
               <div>
-                <label className="block text-xs tracking-[0.15em] uppercase text-stone-600 font-light mb-1.5">
-                  Product Image
-                </label>
+                <label className={labelClass}>Product Image</label>
                 <div
                   className={`relative border-2 border-dashed rounded-lg transition-all duration-200 cursor-pointer ${
                     dragOver
-                      ? "border-amber-500 bg-amber-50/50"
-                      : "border-stone-300 hover:border-stone-400 bg-white"
+                      ? "border-amber-600 bg-amber-50/50"
+                      : "border-stone-300 hover:border-amber-600/50 bg-white"
                   }`}
                   onClick={() => fileInputRef.current?.click()}
                   onDragOver={(e) => {
@@ -520,44 +594,44 @@ export function AdminProducts() {
                 </div>
               </div>
 
-              {/* Checkboxes */}
-              <div className="flex gap-6">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formData.isNew}
-                    onChange={(e) =>
-                      setFormData((p) => ({ ...p, isNew: e.target.checked }))
-                    }
-                    className="w-4 h-4 rounded border-stone-300 text-amber-600 focus:ring-amber-500"
-                  />
-                  <span className="text-sm text-stone-700 font-light">
-                    Mark as New
-                  </span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formData.isBestseller}
-                    onChange={(e) =>
-                      setFormData((p) => ({
-                        ...p,
-                        isBestseller: e.target.checked,
-                      }))
-                    }
-                    className="w-4 h-4 rounded border-stone-300 text-amber-600 focus:ring-amber-500"
-                  />
-                  <span className="text-sm text-stone-700 font-light">
-                    Bestseller
-                  </span>
-                </label>
+              {/* Tags */}
+              <div>
+                <label className={labelClass}>Product Tags</label>
+                <div className="flex flex-wrap gap-4">
+                  <label className="flex items-center gap-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.isNew}
+                      onChange={(e) =>
+                        setFormData((p) => ({
+                          ...p,
+                          isNew: e.target.checked,
+                        }))
+                      }
+                      className="w-4 h-4 rounded border-stone-300 text-amber-600 focus:ring-amber-500"
+                    />
+                    <ProductTagBadge variant="new" />
+                  </label>
+                  <label className="flex items-center gap-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.isBestseller}
+                      onChange={(e) =>
+                        setFormData((p) => ({
+                          ...p,
+                          isBestseller: e.target.checked,
+                        }))
+                      }
+                      className="w-4 h-4 rounded border-stone-300 text-amber-600 focus:ring-amber-500"
+                    />
+                    <ProductTagBadge variant="bestseller" />
+                  </label>
+                </div>
               </div>
 
               {/* Sizes */}
               <div>
-                <label className="block text-xs tracking-[0.15em] uppercase text-stone-600 font-light mb-2">
-                  Sizes
-                </label>
+                <label className={`${labelClass} mb-2`}>Sizes</label>
                 <div className="flex flex-wrap gap-2">
                   {sizeOptions.map((size) => (
                     <button
@@ -578,17 +652,17 @@ export function AdminProducts() {
 
               {/* Colors */}
               <div>
-                <label className="block text-xs tracking-[0.15em] uppercase text-stone-600 font-light mb-2">
+                <label className={`${labelClass} mb-2`}>
                   Colors{" "}
                   <span className="text-stone-400 normal-case tracking-normal">
                     (press Enter to add)
                   </span>
                 </label>
                 <input
-                  type="text"
+                  type="text" x
                   onKeyDown={handleColorInput}
                   placeholder="Type a color and press Enter"
-                  className="w-full px-3 py-2.5 border border-stone-200 rounded-lg text-sm text-stone-800 placeholder:text-stone-400 focus:outline-none focus:border-amber-600 transition-colors bg-white mb-2"
+                  className={`${inputClass} mb-2`}
                 />
                 <div className="flex flex-wrap gap-1.5">
                   {formData.colors.map((color) => (
@@ -611,65 +685,65 @@ export function AdminProducts() {
 
               {/* Description */}
               <div>
-                <label className="block text-xs tracking-[0.15em] uppercase text-stone-600 font-light mb-1.5">
-                  Description
-                </label>
+                <label className={labelClass}>Description</label>
                 <textarea
                   rows={3}
                   value={formData.description}
                   onChange={(e) =>
                     setFormData((p) => ({ ...p, description: e.target.value }))
                   }
-                  className="w-full px-3 py-2.5 border border-stone-200 rounded-lg text-sm text-stone-800 focus:outline-none focus:border-amber-600 transition-colors bg-white resize-none"
+                  className={`${inputClass} resize-none`}
                 />
               </div>
 
               {/* Material */}
               <div>
-                <label className="block text-xs tracking-[0.15em] uppercase text-stone-600 font-light mb-1.5">
-                  Material
-                </label>
+                <label className={labelClass}>Material</label>
                 <input
                   type="text"
                   value={formData.material}
                   onChange={(e) =>
                     setFormData((p) => ({ ...p, material: e.target.value }))
                   }
-                  className="w-full px-3 py-2.5 border border-stone-200 rounded-lg text-sm text-stone-800 focus:outline-none focus:border-amber-600 transition-colors bg-white"
+                  className={inputClass}
                 />
               </div>
 
               {/* Care */}
               <div>
-                <label className="block text-xs tracking-[0.15em] uppercase text-stone-600 font-light mb-1.5">
-                  Care Instructions
-                </label>
+                <label className={labelClass}>Care Instructions</label>
                 <input
                   type="text"
                   value={formData.care}
                   onChange={(e) =>
                     setFormData((p) => ({ ...p, care: e.target.value }))
                   }
-                  className="w-full px-3 py-2.5 border border-stone-200 rounded-lg text-sm text-stone-800 focus:outline-none focus:border-amber-600 transition-colors bg-white"
+                  className={inputClass}
                 />
               </div>
 
               {/* Submit */}
-              <div className="pt-4 border-t border-stone-200 flex gap-3">
+              <div className="pt-4 border-t border-stone-200 flex gap-3 sticky bottom-0 bg-[#f5f3f0] pb-2">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 py-3 border border-stone-300 text-stone-700 text-xs tracking-[0.15em] uppercase rounded-lg hover:bg-stone-100 transition-colors"
+                  className="flex-1 py-3.5 border border-stone-300 text-stone-700 text-xs tracking-[0.15em] uppercase rounded-lg hover:bg-white transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={loading}
-                  className="flex-1 py-3 bg-stone-900 text-white text-xs tracking-[0.15em] uppercase rounded-lg hover:bg-amber-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                  disabled={loading || uploading}
+                  className="flex-1 py-3.5 bg-stone-900 text-white text-xs tracking-[0.15em] uppercase rounded-lg hover:bg-amber-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                 >
-                  {loading && <Loader2 size={14} className="animate-spin" />}
-                  {editingProduct ? "Update" : "Create"}
+                  {(loading || uploading) && (
+                    <Loader2 size={14} className="animate-spin" />
+                  )}
+                  {uploading
+                    ? "Uploading..."
+                    : editingProduct
+                      ? "Update"
+                      : "Create"}
                 </button>
               </div>
             </form>

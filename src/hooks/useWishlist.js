@@ -9,10 +9,12 @@ function getUserId() {
 
 export function useWishlist() {
   const userId = getUserId();
-  const wishlistItems = useQuery(
+  const wishlistQuery = useQuery(
     api.wishlist.list,
-    userId ? { userId } : "skip"
-  ) ?? [];
+    userId ? { userId } : "skip",
+  );
+  const wishlistItems = wishlistQuery ?? [];
+  const isLoading = userId && wishlistQuery === undefined;
   const addMutation = useMutation(api.wishlist.add);
   const removeMutation = useMutation(api.wishlist.remove);
   const removeByIdMutation = useMutation(api.wishlist.removeById);
@@ -40,6 +42,7 @@ export function useWishlist() {
 
   return {
     wishlistItems,
+    isLoading,
     add,
     remove,
     removeById,

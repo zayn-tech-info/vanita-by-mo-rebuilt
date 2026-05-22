@@ -54,6 +54,24 @@ export function AdminLayout() {
     return location.pathname.startsWith(path);
   };
 
+  const breadcrumbLabels = {
+    products: "Products",
+    orders: "Orders",
+    "redeem-codes": "Redeem codes",
+  };
+
+  const getBreadcrumbLabel = () => {
+    if (location.pathname === "/admin") return "Dashboard";
+    const segment = location.pathname.split("/admin/")[1] || "";
+    return (
+      breadcrumbLabels[segment] ||
+      segment
+        .split("-")
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(" ")
+    );
+  };
+
   return (
     <div className="min-h-screen bg-[#f5f3f0] flex">
       {/* Mobile overlay */}
@@ -66,7 +84,7 @@ export function AdminLayout() {
 
       {/* Sidebar */}
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-stone-900 text-white flex flex-col transition-transform duration-300 lg:translate-x-0 ${
+        className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-[#1a1311] text-white flex flex-col transition-transform duration-300 lg:translate-x-0 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -133,26 +151,26 @@ export function AdminLayout() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top Bar */}
-        <header className="h-16 bg-white border-b border-stone-200 flex items-center justify-between px-4 lg:px-8 sticky top-0 z-30 min-w-0">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="lg:hidden p-2 -ml-2 text-stone-600 hover:text-stone-900"
-            aria-label="Open menu"
-          >
-            <Menu size={22} />
-          </button>
+        <header className="h-16 bg-white border-b border-stone-200 flex items-center justify-between gap-3 px-4 lg:px-8 sticky top-0 z-30 min-w-0">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="lg:hidden p-2 -ml-2 text-stone-600 hover:text-stone-900 shrink-0"
+              aria-label="Open menu"
+            >
+              <Menu size={22} />
+            </button>
 
-          <div className="hidden lg:flex items-center gap-2 text-sm text-stone-500 min-w-0 truncate">
-            <span className="font-light shrink-0">Admin Panel</span>
-            <ChevronRight size={14} className="text-stone-300 shrink-0" />
-            <span className="text-stone-800 capitalize font-medium truncate">
-              {location.pathname === "/admin"
-                ? "Dashboard"
-                : location.pathname.split("/admin/")[1] || "Dashboard"}
-            </span>
+            <div className="flex items-center gap-2 text-sm text-stone-500 min-w-0 truncate">
+              <span className="font-light shrink-0">Admin Panel</span>
+              <ChevronRight size={14} className="text-stone-300 shrink-0" />
+              <span className="text-stone-800 font-medium truncate">
+                {getBreadcrumbLabel()}
+              </span>
+            </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0">
             {user?.imageUrl ? (
               <img
                 src={user.imageUrl}

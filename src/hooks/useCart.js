@@ -19,7 +19,14 @@ export function useCart() {
   const removeFromCartMutation = useMutation(api.cart.removeFromCart);
   const clearCartMutation = useMutation(api.cart.clearCart);
 
-  const addToCart = async (product, quantity = 1, size, color) => {
+  const addToCart = async (
+    product,
+    quantity = 1,
+    size,
+    color,
+    options = {},
+  ) => {
+    const { showToast = true } = options;
     const imageStr =
       typeof product.image === "string"
         ? product.image
@@ -38,7 +45,9 @@ export function useCart() {
       color: color || undefined,
     });
 
-    toast.success(`${product.name} added to cart!`);
+    if (showToast) {
+      toast.success(`${product.name} added to cart!`);
+    }
   };
 
   const updateQuantity = async (id, quantity) => {

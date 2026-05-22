@@ -1,6 +1,5 @@
 import type { UserIdentity } from "convex/server";
 
-/** Clerk user id from Convex JWT (`subject` claim, not deprecated `.sub`). */
 export function clerkUserIdFromIdentity(
   identity: UserIdentity | null,
 ): string | null {
