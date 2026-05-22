@@ -288,7 +288,7 @@ export function ProductDetail() {
               {[
                 { icon: Truck, label: "Free Shipping\nOver $200" },
                 { icon: RotateCcw, label: "Easy\nReturns" },
-                { icon: ShieldCheck, label: "Secure\nCheckout" },
+                { icon: ShieldCheck, label: "Quality\nGuaranteed" },
               ].map(({ icon: Icon, label }) => (
                 <div
                   key={label}

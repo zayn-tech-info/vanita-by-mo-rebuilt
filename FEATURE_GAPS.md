@@ -8,11 +8,10 @@ What’s **already implemented** vs what’s **missing or placeholder** from a p
 
 - **Shop**: Browse, category filter, search (name/category/description), sort, filters (size, color, price), pagination, quick view, skeleton loaders
 - **Product detail**: Full info, size/color, add to cart, wishlist heart
-- **Cart**: Add/update/remove, quantity, order summary, redeem code at cart, guest + logged-in, merge on login
-- **Checkout**: Shipping form, redeem code, Stripe (redirect + embedded), order creation with discount validation
+- **Cart**: Add/update/remove, quantity, order summary, guest + logged-in, merge on login
+- **Checkout**: Stripe Checkout (cart → hosted payment), shipping at checkout, pending order + webhook fulfillment
 - **Orders**: Order confirmation page, My Orders list with status, status emails (delayed), admin order list + status update
-- **Wishlist**: Add/remove, wishlist page, move to cart, toast on add, 2×2 grid
-- **Redeem codes**: Validate at cart/checkout, admin create/list, percent + fixed, expiry + max uses
+- **Wishlist**: Add/remove, wishlist page, move to cart, toast on add
 - **Auth**: Login, signup, role (admin/customer), admin-only routes + backend `requireAdmin`
 - **SEO**: Basic meta (title, description) on index.html
 

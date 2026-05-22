@@ -74,26 +74,16 @@ export default defineSchema({
       v.literal("delivered"),
       v.literal("cancelled"),
     ),
-    stripeSessionId: v.optional(v.string()),
-    paymentIntentId: v.optional(v.string()),
     confirmationEmailSentAt: v.optional(v.number()),
-    appliedRedeemCode: v.optional(v.string()),
-  }),
+    stripeCheckoutSessionId: v.optional(v.string()),
+    paymentIntentId: v.optional(v.string()),
+    stripeSessionId: v.optional(v.string()),
+  }).index("by_stripe_checkout_session", ["stripeCheckoutSessionId"]),
 
   wishlist: defineTable({
     userId: v.string(),
     productId: v.id("products"),
   }).index("by_user", ["userId"]),
-
-  redeemCodes: defineTable({
-    code: v.string(),
-    type: v.union(v.literal("percent"), v.literal("fixed")),
-    value: v.number(),
-    expiresAt: v.number(),
-    maxUses: v.number(),
-    usedCount: v.number(),
-    minPurchase: v.optional(v.number()),
-  }).index("by_code", ["code"]),
 
   orderStatusNotificationQueue: defineTable({
     orderId: v.id("orders"),
