@@ -80,9 +80,9 @@ export function Features() {
           />
         </svg>
       ),
-      title: "Secure Payment",
+      title: "Thoughtful Service",
       description:
-        "Shop with confidence. Your payments are protected with bank-level security.",
+        "From browsing to delivery, we aim for a smooth, personal shopping experience.",
     },
   ];
 

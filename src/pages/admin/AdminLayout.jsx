@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   Package,
   ShoppingCart,
-  Tag,
   LogOut,
   Menu,
   X,
@@ -18,7 +17,6 @@ const navItems = [
   { label: "Dashboard", path: "/admin", icon: LayoutDashboard },
   { label: "Products", path: "/admin/products", icon: Package },
   { label: "Orders", path: "/admin/orders", icon: ShoppingCart },
-  { label: "Redeem codes", path: "/admin/redeem-codes", icon: Tag },
 ];
 
 export function AdminLayout() {
@@ -57,7 +55,6 @@ export function AdminLayout() {
   const breadcrumbLabels = {
     products: "Products",
     orders: "Orders",
-    "redeem-codes": "Redeem codes",
   };
 
   const getBreadcrumbLabel = () => {

@@ -7,18 +7,13 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview",
-    "stripe": "node scripts/stripe-cli.cjs",
-    "stripe:login": "node scripts/stripe-cli.cjs login",
-    "stripe:listen": "node scripts/stripe-cli.cjs listen --forward-to https://fleet-wombat-210.convex.site/stripe"
+    "preview": "vite preview"
   },
   "dependencies": {
     "@clerk/clerk-react": "^5.61.6",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@mui/material": "^7.3.8",
-    "@stripe/react-stripe-js": "^5.6.0",
-    "@stripe/stripe-js": "^8.8.0",
     "@tailwindcss/vite": "^4.1.18",
     "axios": "^1.13.5",
     "bcryptjs": "^3.0.3",
@@ -29,7 +24,6 @@
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.13.0",
     "react-toastify": "^11.0.5",
-    "stripe": "^20.4.0",
     "svix": "^1.94.0",
     "tailwindcss": "^4.1.18",
     "zustand": "^5.0.11"
